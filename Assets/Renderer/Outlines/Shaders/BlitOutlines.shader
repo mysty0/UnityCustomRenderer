@@ -23,15 +23,10 @@ Shader "Hidden/BlitOutlines"
             // make fog work
             #pragma multi_compile_fog
 
-            //            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
             struct Attributes
             {
-                /*float4 positionHCS   : POSITION;
-                float2 uv           : TEXCOORD0;
-                UNITY_VERTEX_INPUT_INSTANCE_ID*/
-
                 uint vertexID : SV_VertexID;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
@@ -71,21 +66,6 @@ Shader "Hidden/BlitOutlines"
             
             Varyings vert(Attributes input)
             {
-                /*Varyings output;
-                UNITY_SETUP_INSTANCE_ID(input);
-                UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
-
-                // Note: The pass is setup with a mesh already in clip
-                // space, that's why, it's enough to just output vertex
-                // positions
-                output.positionCS = float4(input.positionHCS.xyz, 1.0);
-
-                #if UNITY_UV_STARTS_AT_TOP
-                    output.positionCS.y *= -1;
-                #endif
-
-                output.uv = input.uv;
-                return output;*/
 
                 Varyings output;
                 UNITY_SETUP_INSTANCE_ID(input);
@@ -95,32 +75,12 @@ Shader "Hidden/BlitOutlines"
                 float2 uv  = GetFullScreenTriangleTexCoord(input.vertexID);
 
                 output.positionCS = pos;
-                //output.uv   = DYNAMIC_SCALING_APPLY_SCALEBIAS(uv);
                 output.uv = uv;
 
                 return output;
             }
 
-            inline half CheckSame (half2 centerNormal, half4 theSample)
-            {
-                // Difference in normals
-                // do not bother decoding normals - there's no need here
-                half2 _Sensitivity = _NormalThreshold;
-                half2 diff = abs(centerNormal - theSample.xy) * _Sensitivity.y;
-                half isSameNormal = 1 - step(0.1, (diff.x + diff.y) * _Sensitivity.y);
-                // Difference in depth
-                //float sampleDepth = DecodeFloatRG(theSample.zw);
-                //float zdiff = abs(centerDepth-sampleDepth);
-                // Scale the required threshold by the distance
-                //half isSameDepth = 1 - step(0.09 * centerDepth, zdiff * _Sensitivity.x);
-                
-                // return:
-                // 1 - if normals and depth are similar enough
-                // 0 - otherwise
-                return (isSameNormal);// * isSameDepth);
-            }
-
-            float dot_self(float3 x) {
+            inline float dot_self(float3 x) {
                 return dot(x, x);
             }
 

@@ -1,12 +1,8 @@
-using System.Collections;
 using System.Collections.Generic;
 
 using UnityEngine;
-using UnityEngine.Experimental.Rendering.Universal;
 using UnityEngine.Rendering.Universal;
 using UnityEngine.Rendering;
-using UnityEngine.Rendering.HighDefinition;
-using UnityEngine.Experimental.Rendering;
 
 public class ScreenSpaceOutlines : ScriptableRendererFeature {
 
@@ -80,7 +76,6 @@ public class ScreenSpaceOutlines : ScriptableRendererFeature {
                 new("SRPDefaultUnlit")
             };
 
-           // normals = RTHandles.Alloc("_SceneViewSpaceNormals", name: "_SceneViewSpaceNormals");//.Init("_SceneViewSpaceNormals");
             normalsMaterial = new Material(Shader.Find("Hidden/VSNormals"));
             if(normalsMaterial == null) {
                 Debug.Log("Cannot create VSNormal material");
@@ -94,13 +89,11 @@ public class ScreenSpaceOutlines : ScriptableRendererFeature {
             RenderTextureDescriptor normalsTextureDescriptor = cameraTextureDescriptor;
             normalsTextureDescriptor.colorFormat = normalsTextureSettings.colorFormat;
             normalsTextureDescriptor.depthBufferBits = normalsTextureSettings.depthBufferBits;
-            //RenderingUtils.ReAllocateIfNeeded(ref normals, normalsTextureDescriptor, name: "_SceneViewSpaceNormals", filterMode: normalsTextureSettings.filterMode);
+
             normals = RTHandles.Alloc("_SceneViewSpaceNormals", name: "_SceneViewSpaceNormals");
             cmd.GetTemporaryRT(normalsId, normalsTextureDescriptor, FilterMode.Bilinear);
-           // cmd.GetTemporaryRT(Shader.PropertyToID(normals.name), normalsTextureDescriptor, normalsTextureSettings.filterMode);
 
             ConfigureTarget(normals);
-            //Debug.Log(normals.nameID);
             ConfigureClear(ClearFlag.All, normalsTextureSettings.backgroundColor);
         }
 
@@ -126,7 +119,6 @@ public class ScreenSpaceOutlines : ScriptableRendererFeature {
                 DrawingSettings occluderSettings = drawSettings;
                 occluderSettings.overrideMaterial = occludersMaterial;
                 
-                //cmd.SetRenderTarget(normals);
                 
                 context.DrawRenderers(renderingData.cullResults, ref drawSettings, ref filteringSettings);
                 context.DrawRenderers(renderingData.cullResults, ref occluderSettings, ref occluderFilteringSettings);
@@ -179,7 +171,6 @@ public class ScreenSpaceOutlines : ScriptableRendererFeature {
             blurMaterial = new Material(Shader.Find("Hidden/BasicBlur"));    
             blitMaterial = new Material(Shader.Find("Hidden/BlendBlit"));    
             blitMaterial.SetColor("_Color", settings.outlineColor);
-                //    screenSpaceOutlineMaterial = new Material(Shader.Find("BlitTest"));
         }
 
         public override void OnCameraSetup(CommandBuffer cmd, ref RenderingData renderingData) {
@@ -188,63 +179,17 @@ public class ScreenSpaceOutlines : ScriptableRendererFeature {
             temporaryTargetDescriptor.colorFormat = RenderTextureFormat.ARGB32;
             RenderingUtils.ReAllocateIfNeeded(ref temporaryBuffer, temporaryTargetDescriptor, FilterMode.Bilinear, name: "_TemporaryBuffer");
             RenderingUtils.ReAllocateIfNeeded(ref temporaryBuffer2, temporaryTargetDescriptor, FilterMode.Bilinear, name: "_TemporaryBuffer2");
-           // RenderingUtils.ReAllocateIfNeeded(ref outlinesBuffer, temporaryTargetDescriptor, FilterMode.Bilinear, name: "_Outlines");
-            
-           // outlinesBuffer = RTHandles.Alloc("_Outlines", name: "_Outlines");
-           // cmd.GetTemporaryRT(outlinesBufferId, temporaryTargetDescriptor, FilterMode.Bilinear);
-
-            //temporaryBuffer = RTHandles.Alloc(temporaryTargetDescriptor, name: "_TemporaryBuffer", filterMode: FilterMode.Bilinear);//RTHandles.Alloc("_TemporaryBuffer", name: "_TemporaryBuffer");
-            //cmd.GetTemporaryRT(Shader.PropertyToID(temporaryBuffer.name), temporaryTargetDescriptor, FilterMode.Bilinear);
-            //temporaryBuffer = RTHandles.Alloc(temporaryBufferID);//new RenderTargetIdentifier(temporaryBufferID);
 
             cameraColorTarget = renderingData.cameraData.renderer.cameraColorTargetHandle;
 
-            //ConfigureTarget(outlinesBuffer);
-            //ConfigureClear(ClearFlag.All, Color.clear);
         }
 
-        public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData) {
-           // if (cameraColorTarget.rt == null) {
-            //    Debug.Log("Camera rt null idk why");
-           //     return;
-           // }
-            
+        public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData) {         
             if (!screenSpaceOutlineMaterial)
                 return;
 
             CommandBuffer cmd = CommandBufferPool.Get();
             using (new ProfilingScope(cmd, new ProfilingSampler("ScreenSpaceOutlines"))) {
-                //Debug.Log(outlinesBuffer.rt);
-               // Debug.Log(temporaryBuffer.rt);
-                //Debug.Log(cameraColorTarget.rt.filterMode);
-                //Blit(cmd, cameraColorTarget, outlinesBuffer);
-                //Debug.Log(temporaryBuffer.rt);
-                //cmd.ClearRenderTarget(true, true, Color.yellow);
-               // Blit(cmd, outlinesBuffer, temporaryBuffer, screenSpaceOutlineMaterial);
-                //CoreUtils.DrawFullScreen(cmd, screenSpaceOutlineMaterial);
-               // cmd.SetRenderTarget(cameraColorTarget);
-                //cmd.ClearRenderTarget(true, true, Color.red);
-                //cmd.Blit(temporaryBuffer, cameraColorTarget, screenSpaceOutlineMaterial);
-               // cmd.SetRenderTarget(temporaryBuffer);
-               // cmd.ClearRenderTarget(true, true, Color.clear);
-                //cmd.Blit(cameraColorTarget, temporaryBuffer);
-                //Blitter.BlitCameraTexture(cmd, temporaryBuffer, cameraColorTarget, screenSpaceOutlineMaterial, 0);
-                
-                // int blurredID = Shader.PropertyToID("_Temp1");
-                // int blurredID2 = Shader.PropertyToID("_Temp2");
-                // cmd.GetTemporaryRT (blurredID, -2, -2, 0, FilterMode.Bilinear);
-                // cmd.GetTemporaryRT (blurredID2, -2, -2, 0, FilterMode.Bilinear);
-                
-                // // downsample screen copy into smaller RT, release screen RT
-                // cmd.Blit (screenCopyID, blurredID);
-                // cmd.ReleaseTemporaryRT (screenCopyID); 
-                
-              
-                //int blurredID = Shader.PropertyToID("_Temp1");
-                //cmd.GetTemporaryRT(blurredID, Screen.width, Screen.height, 0, FilterMode.Bilinear);
-              //  cmd.Blit(temporaryBuffer, blurredID, screenSpaceOutlineMaterial);
-                //cmd.SetRenderTarget(temporaryBuffer);
-                //cmd.ClearRenderTarget(true, true, Color.white);
                 Blit(cmd, cameraColorTarget, temporaryBuffer2, screenSpaceOutlineMaterial);
 
 
@@ -265,7 +210,6 @@ public class ScreenSpaceOutlines : ScriptableRendererFeature {
                 Blit(cmd, cameraColorTarget, temporaryBuffer);
                 Blit(cmd, temporaryBuffer, cameraColorTarget, blitMaterial);
 
-               // Blitter.BlitCameraTexture(cmd, cameraColorTarget, cameraColorTarget, screenSpaceOutlineMaterial, 0);
 
             }
 
@@ -275,7 +219,6 @@ public class ScreenSpaceOutlines : ScriptableRendererFeature {
         }
 
         public override void OnCameraCleanup(CommandBuffer cmd) {
-           //cmd.ReleaseTemporaryRT(outlinesBufferId);
         }
 
         public void Dispose() {
@@ -284,58 +227,6 @@ public class ScreenSpaceOutlines : ScriptableRendererFeature {
         }
 
     }
-
-    //  private class BlurPass : ScriptableRenderPass {
-
-    //     private readonly Material blurMaterial;
-
-    //     RTHandle cameraColorTarget;
-
-    //     RTHandle temporaryBuffer;
-
-    //     public BlurPass(RenderPassEvent renderPassEvent) {
-    //         this.renderPassEvent = renderPassEvent;
-
-    //         blurMaterial = new Material(Shader.Find("Hidden/BasicBlur"));            
-    //     }
-
-    //     public override void OnCameraSetup(CommandBuffer cmd, ref RenderingData renderingData) {
-    //         RenderTextureDescriptor temporaryTargetDescriptor = renderingData.cameraData.cameraTargetDescriptor;
-    //         temporaryTargetDescriptor.depthBufferBits = 0;
-    //         RenderingUtils.ReAllocateIfNeeded(ref temporaryBuffer, temporaryTargetDescriptor, FilterMode.Bilinear, name: "_TemporaryBuffer");
-
-    //         cameraColorTarget = renderingData.cameraData.renderer.cameraColorTargetHandle;
-    //     }
-
-    //     public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData) {
-    //         if (cameraColorTarget.rt == null) {
-    //             Debug.Log("Camera rt null idk why");
-    //             return;
-    //         }
-            
-    //         if (!blurMaterial)
-    //             return;
-
-    //         CommandBuffer cmd = CommandBufferPool.Get();
-    //         using (new ProfilingScope(cmd, new ProfilingSampler("BlurOutlines"))) {
-    //             Blit(cmd, cameraColorTarget, temporaryBuffer);
-    //             Blit(cmd, temporaryBuffer, temporaryBuffer, blurMaterial);
-    //         }
-
-    //         context.ExecuteCommandBuffer(cmd);
-    //         cmd.Clear();
-    //         CommandBufferPool.Release(cmd);
-    //     }
-
-    //     public override void OnCameraCleanup(CommandBuffer cmd) {
-    //        // cmd.ReleaseTemporaryRT(temporaryBufferID);
-    //     }
-
-    //     public void Dispose() {
-    //         temporaryBuffer?.Release();
-    //     }
-
-    // }
 
     [SerializeField] private RenderPassEvent renderPassEvent = RenderPassEvent.AfterRenderingOpaques;
     [SerializeField] private LayerMask outlinesLayerMask;
@@ -354,13 +245,11 @@ public class ScreenSpaceOutlines : ScriptableRendererFeature {
 
         viewSpaceNormalsTexturePass = new ViewSpaceNormalsTexturePass(renderPassEvent, outlinesLayerMask, outlinesOccluderLayerMask, viewSpaceNormalsTextureSettings);
         screenSpaceOutlinePass = new ScreenSpaceOutlinePass(renderPassEvent, outlineSettings);
-     //   blurPass = new BlurPass(renderPassEvent);
     }
 
     public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData) {
         renderer.EnqueuePass(viewSpaceNormalsTexturePass);
         renderer.EnqueuePass(screenSpaceOutlinePass);
-      //  renderer.EnqueuePass(blurPass);
     }
 
 }

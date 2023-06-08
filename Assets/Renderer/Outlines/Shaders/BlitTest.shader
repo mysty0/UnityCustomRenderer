@@ -14,14 +14,9 @@ Shader "BlitTest"
             #pragma vertex vert
             #pragma fragment frag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-           // #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/DynamicScaling.hlsl"
 
             struct Attributes
             {
-                /*float4 positionHCS   : POSITION;
-                float2 uv           : TEXCOORD0;
-                UNITY_VERTEX_INPUT_INSTANCE_ID*/
-
                 uint vertexID : SV_VertexID;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
@@ -35,22 +30,6 @@ Shader "BlitTest"
 
             Varyings vert(Attributes input)
             {
-                /*Varyings output;
-                UNITY_SETUP_INSTANCE_ID(input);
-                UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
-
-                // Note: The pass is setup with a mesh already in clip
-                // space, that's why, it's enough to just output vertex
-                // positions
-                output.positionCS = float4(input.positionHCS.xyz, 1.0);
-
-                #if UNITY_UV_STARTS_AT_TOP
-                output.positionCS.y *= -1;
-                #endif
-
-                output.uv = input.uv;
-                return output;*/
-
                 Varyings output;
                 UNITY_SETUP_INSTANCE_ID(input);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
@@ -59,16 +38,10 @@ Shader "BlitTest"
                 float2 uv  = GetFullScreenTriangleTexCoord(input.vertexID);
 
                 output.positionCS = pos;
-                //output.uv   = DYNAMIC_SCALING_APPLY_SCALEBIAS(uv);
                 output.uv = uv;
 
                 return output;
             }
-
-            //TEXTURE2D_X(_CameraOpaqueTexture);
-           // SAMPLER(sampler_CameraOpaqueTexture);
-
-            //float _Intensity;
 
             #ifdef USE_FULL_PRECISION_BLIT_TEXTURE
             TEXTURE2D_X_FLOAT(_BlitTexture);
