@@ -21,11 +21,12 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 55
   outlineSettings:
-    outlineColor: {r: 0.5660378, g: 0.5660378, b: 0.5660378, a: 1}
-    outlineScale: 2.44
-    depthThreshold: 0.7
+    outlineColor: {r: 0.3679245, g: 0.3679245, b: 0.3679245, a: 1}
+    outlineScale: 0.53
+    blurIntensity: 0.09
+    depthThreshold: 0.2
     robertsCrossMultiplier: 100
-    normalThreshold: 0.247
+    normalThreshold: 0.537
     steepAngleThreshold: 0.2
     steepAngleMultiplier: 25
   viewSpaceNormalsTextureSettings:

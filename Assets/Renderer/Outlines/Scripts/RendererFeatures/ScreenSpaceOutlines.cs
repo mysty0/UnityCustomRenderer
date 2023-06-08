@@ -6,9 +6,7 @@ using UnityEngine.Experimental.Rendering.Universal;
 using UnityEngine.Rendering.Universal;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.HighDefinition;
-using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
-using System.Collections.Generic;
 
 public class ScreenSpaceOutlines : ScriptableRendererFeature {
 
@@ -19,6 +17,7 @@ public class ScreenSpaceOutlines : ScriptableRendererFeature {
         public Color outlineColor = Color.black;
         [Range(0.0f, 20.0f)]
         public float outlineScale = 1.0f;
+        public float blurIntensity = 0.1f;
         
         [Header("Depth Settings")]
         [Range(0.0f, 100.0f)]
@@ -83,6 +82,9 @@ public class ScreenSpaceOutlines : ScriptableRendererFeature {
 
            // normals = RTHandles.Alloc("_SceneViewSpaceNormals", name: "_SceneViewSpaceNormals");//.Init("_SceneViewSpaceNormals");
             normalsMaterial = new Material(Shader.Find("Hidden/VSNormals"));
+            if(normalsMaterial == null) {
+                Debug.Log("Cannot create VSNormal material");
+            }
 
             occludersMaterial = new Material(Shader.Find("Hidden/UnlitSingleColor"));
             occludersMaterial.SetColor("_Color", normalsTextureSettings.backgroundColor);
@@ -94,7 +96,7 @@ public class ScreenSpaceOutlines : ScriptableRendererFeature {
             normalsTextureDescriptor.depthBufferBits = normalsTextureSettings.depthBufferBits;
             //RenderingUtils.ReAllocateIfNeeded(ref normals, normalsTextureDescriptor, name: "_SceneViewSpaceNormals", filterMode: normalsTextureSettings.filterMode);
             normals = RTHandles.Alloc("_SceneViewSpaceNormals", name: "_SceneViewSpaceNormals");
-            cmd.GetTemporaryRT(normalsId, normalsTextureDescriptor, normalsTextureSettings.filterMode);
+            cmd.GetTemporaryRT(normalsId, normalsTextureDescriptor, FilterMode.Bilinear);
            // cmd.GetTemporaryRT(Shader.PropertyToID(normals.name), normalsTextureDescriptor, normalsTextureSettings.filterMode);
 
             ConfigureTarget(normals);
@@ -144,14 +146,23 @@ public class ScreenSpaceOutlines : ScriptableRendererFeature {
     private class ScreenSpaceOutlinePass : ScriptableRenderPass {
 
         private readonly Material screenSpaceOutlineMaterial;
+        private readonly Material blurMaterial;
+        private readonly Material blitMaterial;
 
         RTHandle cameraColorTarget;
 
+        RTHandle outlinesBuffer;
+        int outlinesBufferId = Shader.PropertyToID("_Outlines");
+
         RTHandle temporaryBuffer;
-        //int temporaryBufferID = Shader.PropertyToID("_TemporaryBuffer");
+        RTHandle temporaryBuffer2;
+
+        float blurIntensity;
 
         public ScreenSpaceOutlinePass(RenderPassEvent renderPassEvent, ScreenSpaceOutlineSettings settings) {
-            this.renderPassEvent = renderPassEvent;
+            this.renderPassEvent = RenderPassEvent.BeforeRenderingPostProcessing;
+
+            blurIntensity = settings.blurIntensity;
 
             screenSpaceOutlineMaterial = new Material(Shader.Find("Hidden/BlitOutlines"));
             screenSpaceOutlineMaterial.SetColor("_OutlineColor", settings.outlineColor);
@@ -164,14 +175,23 @@ public class ScreenSpaceOutlines : ScriptableRendererFeature {
 
             screenSpaceOutlineMaterial.SetFloat("_SteepAngleThreshold", settings.steepAngleThreshold);
             screenSpaceOutlineMaterial.SetFloat("_SteepAngleMultiplier", settings.steepAngleMultiplier);
-            
+
+            blurMaterial = new Material(Shader.Find("Hidden/BasicBlur"));    
+            blitMaterial = new Material(Shader.Find("Hidden/BlendBlit"));    
+            blitMaterial.SetColor("_Color", settings.outlineColor);
                 //    screenSpaceOutlineMaterial = new Material(Shader.Find("BlitTest"));
         }
 
         public override void OnCameraSetup(CommandBuffer cmd, ref RenderingData renderingData) {
             RenderTextureDescriptor temporaryTargetDescriptor = renderingData.cameraData.cameraTargetDescriptor;
             temporaryTargetDescriptor.depthBufferBits = 0;
+            temporaryTargetDescriptor.colorFormat = RenderTextureFormat.ARGB32;
             RenderingUtils.ReAllocateIfNeeded(ref temporaryBuffer, temporaryTargetDescriptor, FilterMode.Bilinear, name: "_TemporaryBuffer");
+            RenderingUtils.ReAllocateIfNeeded(ref temporaryBuffer2, temporaryTargetDescriptor, FilterMode.Bilinear, name: "_TemporaryBuffer2");
+           // RenderingUtils.ReAllocateIfNeeded(ref outlinesBuffer, temporaryTargetDescriptor, FilterMode.Bilinear, name: "_Outlines");
+            
+           // outlinesBuffer = RTHandles.Alloc("_Outlines", name: "_Outlines");
+           // cmd.GetTemporaryRT(outlinesBufferId, temporaryTargetDescriptor, FilterMode.Bilinear);
 
             //temporaryBuffer = RTHandles.Alloc(temporaryTargetDescriptor, name: "_TemporaryBuffer", filterMode: FilterMode.Bilinear);//RTHandles.Alloc("_TemporaryBuffer", name: "_TemporaryBuffer");
             //cmd.GetTemporaryRT(Shader.PropertyToID(temporaryBuffer.name), temporaryTargetDescriptor, FilterMode.Bilinear);
@@ -179,34 +199,71 @@ public class ScreenSpaceOutlines : ScriptableRendererFeature {
 
             cameraColorTarget = renderingData.cameraData.renderer.cameraColorTargetHandle;
 
-            //ConfigureTarget(cameraColorTarget);
+            //ConfigureTarget(outlinesBuffer);
+            //ConfigureClear(ClearFlag.All, Color.clear);
         }
 
         public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData) {
-            if (cameraColorTarget.rt == null) {
-                Debug.Log("Camera rt null idk why");
-                return;
-            }
+           // if (cameraColorTarget.rt == null) {
+            //    Debug.Log("Camera rt null idk why");
+           //     return;
+           // }
             
             if (!screenSpaceOutlineMaterial)
                 return;
 
             CommandBuffer cmd = CommandBufferPool.Get();
             using (new ProfilingScope(cmd, new ProfilingSampler("ScreenSpaceOutlines"))) {
-                //Debug.Log(cameraColorTarget.rt);
-                //Debug.Log(temporaryBuffer.rt);
+                //Debug.Log(outlinesBuffer.rt);
+               // Debug.Log(temporaryBuffer.rt);
                 //Debug.Log(cameraColorTarget.rt.filterMode);
-                Blit(cmd, cameraColorTarget, temporaryBuffer);
+                //Blit(cmd, cameraColorTarget, outlinesBuffer);
                 //Debug.Log(temporaryBuffer.rt);
                 //cmd.ClearRenderTarget(true, true, Color.yellow);
-                Blit(cmd, temporaryBuffer, cameraColorTarget, screenSpaceOutlineMaterial);
+               // Blit(cmd, outlinesBuffer, temporaryBuffer, screenSpaceOutlineMaterial);
                 //CoreUtils.DrawFullScreen(cmd, screenSpaceOutlineMaterial);
                // cmd.SetRenderTarget(cameraColorTarget);
                 //cmd.ClearRenderTarget(true, true, Color.red);
                 //cmd.Blit(temporaryBuffer, cameraColorTarget, screenSpaceOutlineMaterial);
+               // cmd.SetRenderTarget(temporaryBuffer);
+               // cmd.ClearRenderTarget(true, true, Color.clear);
+                //cmd.Blit(cameraColorTarget, temporaryBuffer);
+                //Blitter.BlitCameraTexture(cmd, temporaryBuffer, cameraColorTarget, screenSpaceOutlineMaterial, 0);
+                
+                // int blurredID = Shader.PropertyToID("_Temp1");
+                // int blurredID2 = Shader.PropertyToID("_Temp2");
+                // cmd.GetTemporaryRT (blurredID, -2, -2, 0, FilterMode.Bilinear);
+                // cmd.GetTemporaryRT (blurredID2, -2, -2, 0, FilterMode.Bilinear);
+                
+                // // downsample screen copy into smaller RT, release screen RT
+                // cmd.Blit (screenCopyID, blurredID);
+                // cmd.ReleaseTemporaryRT (screenCopyID); 
+                
+              
+                //int blurredID = Shader.PropertyToID("_Temp1");
+                //cmd.GetTemporaryRT(blurredID, Screen.width, Screen.height, 0, FilterMode.Bilinear);
+              //  cmd.Blit(temporaryBuffer, blurredID, screenSpaceOutlineMaterial);
+                //cmd.SetRenderTarget(temporaryBuffer);
+                //cmd.ClearRenderTarget(true, true, Color.white);
+                Blit(cmd, cameraColorTarget, temporaryBuffer2, screenSpaceOutlineMaterial);
 
-               // cmd.Blit(cameraColorTarget, temporaryBuffer);
-                //cmd.Blit(temporaryBuffer, cameraColorTarget, screenSpaceOutlineMaterial);
+
+                // horizontal blur
+                cmd.SetGlobalVector("offsets", new Vector4(2.0f/Screen.width * blurIntensity,0,0,0));
+                Blit (cmd, temporaryBuffer2, temporaryBuffer, blurMaterial);
+                // vertical blur
+                cmd.SetGlobalVector("offsets", new Vector4(0,2.0f/Screen.height * blurIntensity,0,0));
+                Blit (cmd, temporaryBuffer, temporaryBuffer2, blurMaterial);
+                // horizontal blur
+                cmd.SetGlobalVector("offsets", new Vector4(4.0f/Screen.width * blurIntensity,0,0,0));
+                Blit (cmd, temporaryBuffer2, temporaryBuffer, blurMaterial);
+                // vertical blur
+                cmd.SetGlobalVector("offsets", new Vector4(0,4.0f/Screen.height * blurIntensity,0,0));
+                Blit(cmd, temporaryBuffer, temporaryBuffer2, blurMaterial);
+                
+                cmd.SetGlobalTexture("_SecondTex", temporaryBuffer2);
+                Blit(cmd, cameraColorTarget, temporaryBuffer);
+                Blit(cmd, temporaryBuffer, cameraColorTarget, blitMaterial);
 
                // Blitter.BlitCameraTexture(cmd, cameraColorTarget, cameraColorTarget, screenSpaceOutlineMaterial, 0);
 
@@ -218,14 +275,67 @@ public class ScreenSpaceOutlines : ScriptableRendererFeature {
         }
 
         public override void OnCameraCleanup(CommandBuffer cmd) {
-           // cmd.ReleaseTemporaryRT(temporaryBufferID);
+           //cmd.ReleaseTemporaryRT(outlinesBufferId);
         }
 
         public void Dispose() {
             temporaryBuffer?.Release();
+            temporaryBuffer2?.Release();
         }
 
     }
+
+    //  private class BlurPass : ScriptableRenderPass {
+
+    //     private readonly Material blurMaterial;
+
+    //     RTHandle cameraColorTarget;
+
+    //     RTHandle temporaryBuffer;
+
+    //     public BlurPass(RenderPassEvent renderPassEvent) {
+    //         this.renderPassEvent = renderPassEvent;
+
+    //         blurMaterial = new Material(Shader.Find("Hidden/BasicBlur"));            
+    //     }
+
+    //     public override void OnCameraSetup(CommandBuffer cmd, ref RenderingData renderingData) {
+    //         RenderTextureDescriptor temporaryTargetDescriptor = renderingData.cameraData.cameraTargetDescriptor;
+    //         temporaryTargetDescriptor.depthBufferBits = 0;
+    //         RenderingUtils.ReAllocateIfNeeded(ref temporaryBuffer, temporaryTargetDescriptor, FilterMode.Bilinear, name: "_TemporaryBuffer");
+
+    //         cameraColorTarget = renderingData.cameraData.renderer.cameraColorTargetHandle;
+    //     }
+
+    //     public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData) {
+    //         if (cameraColorTarget.rt == null) {
+    //             Debug.Log("Camera rt null idk why");
+    //             return;
+    //         }
+            
+    //         if (!blurMaterial)
+    //             return;
+
+    //         CommandBuffer cmd = CommandBufferPool.Get();
+    //         using (new ProfilingScope(cmd, new ProfilingSampler("BlurOutlines"))) {
+    //             Blit(cmd, cameraColorTarget, temporaryBuffer);
+    //             Blit(cmd, temporaryBuffer, temporaryBuffer, blurMaterial);
+    //         }
+
+    //         context.ExecuteCommandBuffer(cmd);
+    //         cmd.Clear();
+    //         CommandBufferPool.Release(cmd);
+    //     }
+
+    //     public override void OnCameraCleanup(CommandBuffer cmd) {
+    //        // cmd.ReleaseTemporaryRT(temporaryBufferID);
+    //     }
+
+    //     public void Dispose() {
+    //         temporaryBuffer?.Release();
+    //     }
+
+    // }
 
     [SerializeField] private RenderPassEvent renderPassEvent = RenderPassEvent.AfterRenderingOpaques;
     [SerializeField] private LayerMask outlinesLayerMask;
@@ -236,6 +346,7 @@ public class ScreenSpaceOutlines : ScriptableRendererFeature {
 
     private ViewSpaceNormalsTexturePass viewSpaceNormalsTexturePass;
     private ScreenSpaceOutlinePass screenSpaceOutlinePass;
+   // private BlurPass blurPass;
     
     public override void Create() {
         if (renderPassEvent < RenderPassEvent.BeforeRenderingPrePasses)
@@ -243,11 +354,13 @@ public class ScreenSpaceOutlines : ScriptableRendererFeature {
 
         viewSpaceNormalsTexturePass = new ViewSpaceNormalsTexturePass(renderPassEvent, outlinesLayerMask, outlinesOccluderLayerMask, viewSpaceNormalsTextureSettings);
         screenSpaceOutlinePass = new ScreenSpaceOutlinePass(renderPassEvent, outlineSettings);
+     //   blurPass = new BlurPass(renderPassEvent);
     }
 
     public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData) {
         renderer.EnqueuePass(viewSpaceNormalsTexturePass);
         renderer.EnqueuePass(screenSpaceOutlinePass);
+      //  renderer.EnqueuePass(blurPass);
     }
 
 }

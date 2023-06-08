@@ -125,7 +125,7 @@ Shader "Hidden/BlitOutlines"
             }
 
 
-            half4 frag (Varyings i) : SV_Target
+            float4 frag (Varyings i) : SV_Target
             {
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
                 float4 color = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_BlitTexture, i.uv);
@@ -157,14 +157,14 @@ Shader "Hidden/BlitOutlines"
 
                 // Apply a threshold
                 float smooth = 0.2;
-                float edge = smoothstep(_NormalThreshold-smooth, _NormalThreshold+smooth, diff * centerDepth * 100);
-                float depthEdge = smoothstep(_DepthThreshold-smooth, _DepthThreshold+smooth, depthDiff * _RobertsCrossMultiplier);
+                float edge = step(_NormalThreshold, diff * centerDepth * 100);
+                float depthEdge = step(_DepthThreshold, depthDiff * _RobertsCrossMultiplier);
 
                 edge = max(edge, depthEdge);
 
                 // Output the edge detection
                // return half4(edge, edge, edge, 1.0);//
-               return lerp(color, color - half4(_OutlineColor, 1.0), edge);
+               return float4(lerp(0., color - _OutlineColor, edge).rgb, edge);
                 
                 //return float4(color.rgb, 1.0); //* float4(0, _Intensity, 0, 1);
             }
