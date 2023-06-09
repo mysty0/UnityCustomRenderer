@@ -61,7 +61,8 @@ Shader "Hidden/BlitOutlines"
             SAMPLER(sampler_SceneViewSpaceNormals);
             
             TEXTURE2D_X(_CameraDepthTexture);
-            SAMPLER(sampler_CameraDepthTexture);
+           // SAMPLER(sampler_CameraDepthTexture);
+           SamplerState sampler_linear_repeat;
 
             
             Varyings vert(Attributes input)
@@ -84,6 +85,8 @@ Shader "Hidden/BlitOutlines"
                 return dot(x, x);
             }
 
+            #define SAMPLE_DEPTH_TEXTURE_BILINEAR(tex, samp, uv) tex.Sample(sampler_linear_repeat, uv).r
+
 
             float4 frag (Varyings i) : SV_Target
             {
@@ -91,7 +94,7 @@ Shader "Hidden/BlitOutlines"
                 float4 color = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_BlitTexture, i.uv);
                 // float4 color = SAMPLE_TEXTURE2D_X(_SceneViewSpaceNormals, sampler_SceneViewSpaceNormals, input.uv);
 
-                float centerDepth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, sampler_CameraDepthTexture, i.uv);
+                float centerDepth = SAMPLE_DEPTH_TEXTURE_BILINEAR(_CameraDepthTexture, sampler_CameraDepthTexture, i.uv);
                 
                 float2 offset = _SceneViewSpaceNormals_TexelSize.xy * _OutlineScale;
                 
@@ -106,10 +109,10 @@ Shader "Hidden/BlitOutlines"
                 float diff = dot_self(centerNormal - leftNormal) + dot_self(centerNormal - rightNormal) + dot_self(centerNormal - topNormal) + dot_self(centerNormal - bottomNormal);
 
                 
-                float leftDepth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, sampler_CameraDepthTexture, i.uv + float2(-offset.x, 0.0));
-                float rightDepth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, sampler_CameraDepthTexture, i.uv + float2(offset.x, 0.0));
-                float topDepth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, sampler_CameraDepthTexture, i.uv + float2(0.0, -offset.y));
-                float bottomDepth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, sampler_CameraDepthTexture, i.uv + float2(0.0, offset.y));
+                float leftDepth = SAMPLE_DEPTH_TEXTURE_BILINEAR(_CameraDepthTexture, sampler_CameraDepthTexture, i.uv + float2(-offset.x, 0.0));
+                float rightDepth = SAMPLE_DEPTH_TEXTURE_BILINEAR(_CameraDepthTexture, sampler_CameraDepthTexture, i.uv + float2(offset.x, 0.0));
+                float topDepth = SAMPLE_DEPTH_TEXTURE_BILINEAR(_CameraDepthTexture, sampler_CameraDepthTexture, i.uv + float2(0.0, -offset.y));
+                float bottomDepth = SAMPLE_DEPTH_TEXTURE_BILINEAR(_CameraDepthTexture, sampler_CameraDepthTexture, i.uv + float2(0.0, offset.y));
 
                 // Calculate the depth difference
                 float depthDiff = pow(centerDepth - leftDepth, 2.) + pow(centerDepth - rightDepth, 2.) + pow(centerDepth - topDepth, 2.) + pow(centerDepth - bottomDepth, 2.0);

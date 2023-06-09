@@ -49,13 +49,14 @@ public class ScreenSpaceOutlines : ScriptableRendererFeature {
 
     }
 
+    private static List<ShaderTagId> shaderTagIdList;
+
     private class ViewSpaceNormalsTexturePass : ScriptableRenderPass {
 
         private ViewSpaceNormalsTextureSettings normalsTextureSettings;
         private FilteringSettings filteringSettings;
         private FilteringSettings occluderFilteringSettings;
 
-        private readonly List<ShaderTagId> shaderTagIdList;
         private readonly Material normalsMaterial;
         private readonly Material occludersMaterial;
 
@@ -68,13 +69,6 @@ public class ScreenSpaceOutlines : ScriptableRendererFeature {
             normalsTextureSettings = settings;
             filteringSettings = new FilteringSettings(RenderQueueRange.opaque, layerMask);
             occluderFilteringSettings = new FilteringSettings(RenderQueueRange.opaque, occluderLayerMask);
-
-            shaderTagIdList = new List<ShaderTagId> {
-                new("UniversalForward"),
-                new("UniversalForwardOnly"),
-                new("LightweightForward"),
-                new("SRPDefaultUnlit")
-            };
 
             normalsMaterial = new Material(Shader.Find("Hidden/VSNormals"));
             if(normalsMaterial == null) {
@@ -119,7 +113,6 @@ public class ScreenSpaceOutlines : ScriptableRendererFeature {
                 DrawingSettings occluderSettings = drawSettings;
                 occluderSettings.overrideMaterial = occludersMaterial;
                 
-                
                 context.DrawRenderers(renderingData.cullResults, ref drawSettings, ref filteringSettings);
                 context.DrawRenderers(renderingData.cullResults, ref occluderSettings, ref occluderFilteringSettings);
                 
@@ -140,9 +133,11 @@ public class ScreenSpaceOutlines : ScriptableRendererFeature {
         private readonly Material screenSpaceOutlineMaterial;
         private readonly Material blurMaterial;
         private readonly Material blitMaterial;
+        private readonly Material occludersMaterial;
+
+        private FilteringSettings occluderFilteringSettings;
 
         RTHandle cameraColorTarget;
-
         RTHandle outlinesBuffer;
         int outlinesBufferId = Shader.PropertyToID("_Outlines");
 
@@ -151,10 +146,12 @@ public class ScreenSpaceOutlines : ScriptableRendererFeature {
 
         float blurIntensity;
 
-        public ScreenSpaceOutlinePass(RenderPassEvent renderPassEvent, ScreenSpaceOutlineSettings settings) {
+        public ScreenSpaceOutlinePass(RenderPassEvent renderPassEvent, LayerMask occluderLayerMask, ScreenSpaceOutlineSettings settings) {
             this.renderPassEvent = RenderPassEvent.BeforeRenderingPostProcessing;
 
-            blurIntensity = settings.blurIntensity;
+            blurIntensity = settings.blurIntensity;        
+            occluderFilteringSettings = new FilteringSettings(RenderQueueRange.opaque, occluderLayerMask);
+
 
             screenSpaceOutlineMaterial = new Material(Shader.Find("Hidden/BlitOutlines"));
             screenSpaceOutlineMaterial.SetColor("_OutlineColor", settings.outlineColor);
@@ -171,6 +168,9 @@ public class ScreenSpaceOutlines : ScriptableRendererFeature {
             blurMaterial = new Material(Shader.Find("Hidden/BasicBlur"));    
             blitMaterial = new Material(Shader.Find("Hidden/BlendBlit"));    
             blitMaterial.SetColor("_Color", settings.outlineColor);
+
+            occludersMaterial = new Material(Shader.Find("Hidden/UnlitSingleColor"));
+            occludersMaterial.SetColor("_Color", Color.black);
         }
 
         public override void OnCameraSetup(CommandBuffer cmd, ref RenderingData renderingData) {
@@ -181,7 +181,6 @@ public class ScreenSpaceOutlines : ScriptableRendererFeature {
             RenderingUtils.ReAllocateIfNeeded(ref temporaryBuffer2, temporaryTargetDescriptor, FilterMode.Bilinear, name: "_TemporaryBuffer2");
 
             cameraColorTarget = renderingData.cameraData.renderer.cameraColorTargetHandle;
-
         }
 
         public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData) {         
@@ -190,8 +189,13 @@ public class ScreenSpaceOutlines : ScriptableRendererFeature {
 
             CommandBuffer cmd = CommandBufferPool.Get();
             using (new ProfilingScope(cmd, new ProfilingSampler("ScreenSpaceOutlines"))) {
+                // draw outlines
                 Blit(cmd, cameraColorTarget, temporaryBuffer2, screenSpaceOutlineMaterial);
-
+                
+                // remove ocluded outlines
+                DrawingSettings drawSettings = CreateDrawingSettings(shaderTagIdList, ref renderingData, renderingData.cameraData.defaultOpaqueSortFlags);
+                drawSettings.overrideMaterial = occludersMaterial;
+                context.DrawRenderers(renderingData.cullResults, ref drawSettings, ref occluderFilteringSettings);
 
                 // horizontal blur
                 cmd.SetGlobalVector("offsets", new Vector4(2.0f/Screen.width * blurIntensity,0,0,0));
@@ -209,8 +213,6 @@ public class ScreenSpaceOutlines : ScriptableRendererFeature {
                 cmd.SetGlobalTexture("_SecondTex", temporaryBuffer2);
                 Blit(cmd, cameraColorTarget, temporaryBuffer);
                 Blit(cmd, temporaryBuffer, cameraColorTarget, blitMaterial);
-
-
             }
 
             context.ExecuteCommandBuffer(cmd);
@@ -240,11 +242,18 @@ public class ScreenSpaceOutlines : ScriptableRendererFeature {
    // private BlurPass blurPass;
     
     public override void Create() {
+       shaderTagIdList = new List<ShaderTagId> {
+        new("UniversalForward"),
+        new("UniversalForwardOnly"),
+        new("LightweightForward"),
+        new("SRPDefaultUnlit")
+    };
+
         if (renderPassEvent < RenderPassEvent.BeforeRenderingPrePasses)
             renderPassEvent = RenderPassEvent.BeforeRenderingPrePasses;
 
         viewSpaceNormalsTexturePass = new ViewSpaceNormalsTexturePass(renderPassEvent, outlinesLayerMask, outlinesOccluderLayerMask, viewSpaceNormalsTextureSettings);
-        screenSpaceOutlinePass = new ScreenSpaceOutlinePass(renderPassEvent, outlineSettings);
+        screenSpaceOutlinePass = new ScreenSpaceOutlinePass(renderPassEvent, outlinesOccluderLayerMask, outlineSettings);
     }
 
     public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData) {
