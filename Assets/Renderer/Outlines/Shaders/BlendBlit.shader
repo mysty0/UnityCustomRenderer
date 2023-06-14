@@ -28,7 +28,7 @@ Shader "Hidden/BlendBlit"
                 float4 col = SAMPLE_TEXTURE2D(_BlitTexture, sampler_BlitTexture, i.uv);
                 float4 second = SAMPLE_TEXTURE2D(_SecondTex, sampler_SecondTex, i.uv);
 
-                return second;//lerp(col, second, second.a);
+                return lerp(col, second, second.a);
             }
             ENDHLSL
         }

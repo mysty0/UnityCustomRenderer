@@ -169,7 +169,26 @@ float2 W(float2 p, float t){
 }
 
 
+float m_height(in float2 p, in float seed) {
+    float2 uv = p;
+    float res = 1.;
+    for (int i = 0; i < 3; i++) {
+        res += cos(uv.y*12.345 - seed*2. + cos(res*6.234)*.2 + cos(uv.x*16.2345 + cos(uv.y*8.234)) ) + cos(uv.x*6.345);
+        uv = uv.yx;
+        uv.x += res * pow(2., -float(i)) * 0.1;
+    }
+    return res;
+}
 
+float2 m_normal(in float2 p, in float seed) {
+    const float2 NE = float2(.1,0.);
+    return normalize(float2( m_height(p+NE, seed)-m_height(p-NE, seed),
+                           m_height(p+NE.yx, seed)-m_height(p-NE.yx, seed) ));
+}
+
+void MetalNoise_float(float2 UV, float Seed, out float2 Noise) {
+    Noise = m_normal(UV, Seed);
+}
 
 void ValueNoise_float(float2 UV, out float Noise) {
     Noise = noise(UV);

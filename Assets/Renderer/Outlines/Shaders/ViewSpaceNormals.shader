@@ -22,12 +22,14 @@ Shader "Hidden/VSNormals"
             {
                 float4 vertex : POSITION;
                 float3 normal : NORMAL;
+                float4 color : COLOR;
             };
 
             struct v2f
             {
                 float4 vertex : SV_POSITION;
                 float3 normal : TEXCOORD1;
+                float4 color : COLOR;
             };
 
             sampler2D _MainTex;
@@ -43,13 +45,14 @@ Shader "Hidden/VSNormals"
                 v2f o;
                 o.vertex = UnityObjectToClipPos(v.vertex);
                 o.normal = UnityObjectToWorldNormal(v.normal);// mul(v.normal, (float3x3) UNITY_MATRIX_I_V);
+                o.color = v.color;
                 return o;
             }
 
             fixed4 frag (v2f i) : SV_Target
             {
                 float3 remaped = remap(i.normal, float2(-1, 1), float2 (0, 1));
-                return fixed4(remaped, 1.0);
+                return fixed4(remaped, i.color.r);
             }
             ENDCG
         }

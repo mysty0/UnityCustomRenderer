@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe791701b10dbaa45bdf9cd2d05e75cf, type: 3}
   m_Name: ScreenSpaceOutlines
   m_EditorClassIdentifier: 
-  m_Active: 1
+  m_Active: 0
   renderPassEvent: 300
   outlinesLayerMask:
     serializedVersion: 2
@@ -20,13 +20,19 @@ MonoBehaviour:
   outlinesOccluderLayerMask:
     serializedVersion: 2
     m_Bits: 55
+  textureResolutionScale: 1
   outlineSettings:
     outlineColor: {r: 0.3679245, g: 0.3679245, b: 0.3679245, a: 1}
-    outlineScale: 0.53
-    blurIntensity: 0.09
+    outlineScale: 0.17
+    blurEnabled: 1
+    blurIntensity: 0.06
+    depthDetectionEnabled: 0
     depthThreshold: 0.2
     robertsCrossMultiplier: 100
-    normalThreshold: 0.537
+    depthEdgeDetectionMethod: 0
+    normalDetectionEnabled: 1
+    normalThreshold: 1
+    normalEdgeDetectionMethod: 1
     steepAngleThreshold: 0.2
     steepAngleMultiplier: 25
   viewSpaceNormalsTextureSettings:

@@ -5,7 +5,7 @@ void Specular_float(float3 Light, float3 Normal, float3 View, float SpecularInte
     const float3 r = normalize(2 * dot(-Light, Normal) * Normal + Light);
     const float3 v = View;//normalize(mul(normalize(View), World));
 
-    const float dotProduct = dot(r, v);//saturate(dot(r, v));
+    const float dotProduct = saturate(dot(r, v));//saturate(dot(r, v));
     Specular = SpecularIntensity * max(pow(dotProduct, Shininess), 0);
     Specular = saturate(Specular);
 }
