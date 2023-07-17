@@ -186,6 +186,10 @@ float2 m_normal(in float2 p, in float seed) {
                            m_height(p+NE.yx, seed)-m_height(p-NE.yx, seed) ));
 }
 
+void Hash_float(float2 UV, out float Hash) {
+    Hash = hash(UV);
+}
+
 void MetalNoise_float(float2 UV, float Seed, out float2 Noise) {
     Noise = m_normal(UV, Seed);
 }
